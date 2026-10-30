@@ -289,13 +289,27 @@ const FILTERS = [
 ];
 function activeYears(){ return state.cy.size ? [...state.cy].sort((a,b)=>a-b) : [CURRENT]; }
 let _cache = null;
-function filtered(){
-  if (_cache) return _cache;
-  const ys = new Set(activeYears());
-  const s = state, ok = (set, v)=> set.size===0 || set.has(v);
-  _cache = R.filter(r => ys.has(r[F.cy]) && ok(s.grower,r[F.grower]) && ok(s.cust,r[F.cust]) && ok(s.lot,r[F.lot]) &&
-    ok(s.variety,r[F.variety]) && ok(s.origin,r[F.origin]) && ok(s.pay,r[F.pay]) && !(s.hidePH && r[F.placeholder]));
-  return _cache;
+const FKEYS = ['cy','grower','cust','lot','variety','origin','pay'];
+/* rows matching every filter except `skip` (used to find which options are still available) */
+function matchRows(skip){
+  const ys = new Set(activeYears()), s = state, ok = (set, v)=> set.size===0 || set.has(v);
+  return R.filter(r => (skip==='cy' || ys.has(r[F.cy])) && (skip==='grower' || ok(s.grower,r[F.grower])) && (skip==='cust' || ok(s.cust,r[F.cust])) &&
+    (skip==='lot' || ok(s.lot,r[F.lot])) && (skip==='variety' || ok(s.variety,r[F.variety])) && (skip==='origin' || ok(s.origin,r[F.origin])) &&
+    (skip==='pay' || ok(s.pay,r[F.pay])) && !(s.hidePH && r[F.placeholder]));
+}
+function filtered(){ return _cache || (_cache = matchRows(null)); }
+function availability(key){ const m = new Map(), f = F[key]; for (const r of matchRows(key)) m.set(r[f], (m.get(r[f])||0)+1); return m; }
+/* drop selections that no longer match any record under the other filters */
+function prune(){
+  for (let pass=0; pass<5; pass++){
+    let removed = false;
+    for (const k of ['lot','origin','variety','pay','grower','cust']){   // narrowest filters are dropped first
+      if (state[k].size===0) continue;
+      const av = availability(k);
+      for (const v of [...state[k]]) if (!av.has(v)){ state[k].delete(v); removed = true; }
+    }
+    if (!removed) break;
+  }
 }
 
 /* ---------- metrics ---------- */
@@ -370,14 +384,15 @@ function buildFilters(){
     const wrap = h('div',{class:'ms'}, btn, pop);
     const paint = ()=>{
       const q = search.value.trim().toLowerCase();
-      const items = def.opts.filter(o=>!q || o.label.toLowerCase().includes(q));
+      const av = availability(def.key);
+      const items = def.opts.filter(o=>(def.key==='cy' || av.has(o.v) || state[def.key].has(o.v)) && (!q || o.label.toLowerCase().includes(q)));
       list.textContent='';
       for (const o of items.slice(0,250)){
         const cb = h('input',{type:'checkbox'}); cb.checked = state[def.key].has(o.v);
         cb.addEventListener('change',()=>{ cb.checked ? state[def.key].add(o.v) : state[def.key].delete(o.v); changed(); });
-        list.append(h('label',{}, cb, o.label));
+        list.append(h('label',{}, cb, h('span',{style:'flex:1'},o.label), h('span',{class:'muted',style:'font-variant-numeric:tabular-nums'},fmt(av.get(o.v)||0))));
       }
-      info.textContent = items.length>250 ? `Showing 250 of ${items.length}. Type to narrow.` : `${items.length} options`;
+      info.textContent = items.length>250 ? `Showing 250 of ${items.length}. Type to narrow.` : `${items.length} available · records`;
     };
     btn.textContent = labelFor(def);
     btn.addEventListener('click',(e)=>{
@@ -398,7 +413,7 @@ function buildFilters(){
   document.addEventListener('click',()=>{ document.querySelectorAll('.ms-pop').forEach(p=>p.hidden=true); });
   document.addEventListener('keydown',e=>{ if (e.key==='Escape') document.querySelectorAll('.ms-pop').forEach(p=>p.hidden=true); });
 }
-function changed(){ _cache=null; state.dqLimit=300; renderMain(); }
+function changed(){ _cache=null; prune(); _cache=null; state.dqLimit=300; renderMain(); }
 
 /* ---------- summary boxes (single year = value, several years = comparison) ---------- */
 function summaryBoxes(rows){
