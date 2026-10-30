@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#2a78d6">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mart Deliveries">
+<title>Mart Delivery Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: filter bar pinned above tabs; summary tiles, then charts in a 2-column grid, dense tables below. */
+:root{
+  --bg:#f4f3ef; --surface:#fcfcfb; --ink:#161614; --ink2:#52514e; --muted:#7d7b75; --line:#e1dfd8;
+  --accent:#256abf; --accent-soft:#e6eefa; --warn:#9a5b00; --warn-soft:#fdf0dc; --bad:#b3261e;
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --c6:#008300; --c7:#6250d6; --c8:#e34948; --other:#a9a8a1;
+  --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e86; --line:#2e2d2a;
+    --accent:#6da7ec; --accent-soft:#1d2b3f; --warn:#e0a04a; --warn-soft:#33281a; --bad:#f2807a;
+    --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767; --other:#6f6e68;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e86; --line:#2e2d2a;
+  --accent:#6da7ec; --accent-soft:#1d2b3f; --warn:#e0a04a; --warn-soft:#33281a; --bad:#f2807a;
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767; --other:#6f6e68;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--font);-webkit-text-size-adjust:100%}
+.wrap{max-width:1360px;margin:0 auto;padding:0 16px 48px}
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;padding:20px 0 12px}
+header.top h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
+header.top .src{color:var(--muted);font-size:12px;font-family:var(--mono)}
+.filters{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0 10px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ms{position:relative}
+.ms-btn,.btn,select,.search{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+.ms-btn{min-width:0;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.ms-btn.on{border-color:var(--accent);background:var(--accent-soft)}
+.ms-btn:hover,.btn:hover,select:hover{border-color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ms-pop{position:absolute;top:calc(100% + 4px);left:0;width:280px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:8px;z-index:30}
+.ms-pop[hidden]{display:none}
+.ms-search{width:100%;cursor:text;margin-bottom:6px}
+.ms-list{max-height:260px;overflow:auto}
+.ms-list label{display:flex;gap:8px;align-items:center;padding:4px 6px;border-radius:4px;cursor:pointer}
+.ms-list label:hover{background:var(--accent-soft)}
+.ms-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;border-top:1px solid var(--line);padding-top:6px;color:var(--muted);font-size:12px}
+.link{background:none;border:0;color:var(--accent);cursor:pointer;font:inherit;padding:2px 4px}
+.chk{display:flex;gap:6px;align-items:center;color:var(--ink2);font-size:13px;cursor:pointer}
+.spacer{flex:1}
+.count{color:var(--ink2);font-size:13px;font-variant-numeric:tabular-nums}
+nav.tabs{display:flex;gap:2px;margin:14px 0 14px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav.tabs button{font:inherit;background:none;border:0;border-bottom:2px solid transparent;color:var(--ink2);padding:8px 14px;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tile .k{color:var(--ink2);font-size:12px}
+.tile .v{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em;margin:2px 0}
+.tile .v.sm{font-size:16px;margin:6px 0}
+.tile .s{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid .wide{grid-column:1/-1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.card h2{font-size:14px;font-weight:600;margin:0 0 2px}
+.card .sub{color:var(--muted);font-size:12px;margin-bottom:10px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 8px;font-size:12px;color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.legend i.ln{height:3px;width:14px;border-radius:2px;vertical-align:3px}
+svg text{font-family:var(--font);font-size:11px;fill:var(--muted)}
+svg .grid line{stroke:var(--line)}
+.hbars .row{display:grid;grid-template-columns:minmax(90px,170px) 1fr 84px;gap:8px;align-items:center;padding:3px 0}
+.hbars .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink2)}
+.hbars .track{height:14px}
+.hbars .bar{height:14px;border-radius:0 4px 4px 0;min-width:2px}
+.hbars .val{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);max-height:640px}
+table{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}
+th{position:sticky;top:0;background:var(--surface);z-index:2;font-weight:600;color:var(--ink2);font-size:12px}
+th.l,td.l{text-align:left}
+th.sortable{cursor:pointer}
+th.sortable:hover{color:var(--ink)}
+th.grp{text-align:center;border-bottom:1px solid var(--line)}
+th.yr{top:30px}
+tr.total td{font-weight:600;background:var(--bg);position:sticky;bottom:0}
+td .n{display:block;font-size:11px;color:var(--muted)}
+.mono{font-family:var(--mono);font-size:12px}
+.muted{color:var(--muted)}
+.badge{display:inline-block;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600}
+.badge.A{background:var(--warn-soft);color:var(--warn)}
+.badge.B{background:var(--accent-soft);color:var(--accent)}
+.badge.C{background:var(--line);color:var(--ink)}
+.note{background:var(--warn-soft);color:var(--ink);border-left:3px solid var(--warn);padding:8px 12px;border-radius:0 6px 6px 0;margin:0 0 12px;font-size:13px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:99px;padding:3px 10px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.pager{display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--ink2);font-size:13px}
+tr.g1 td{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+#tip{position:fixed;pointer-events:none;z-index:50;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 20px rgba(0,0,0,.18);border-radius:6px;padding:8px 10px;font-size:12px;min-width:140px;display:none}
+#tip .t{font-weight:600;margin-bottom:4px}
+#tip .r{display:flex;gap:8px;justify-content:space-between;font-variant-numeric:tabular-nums}
+#tip .r b{font-weight:600}
+#tip .k i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:6px;vertical-align:3px}
+footer.defs{margin-top:18px;color:var(--muted);font-size:12px;max-width:100ch}
+footer.defs p{margin:4px 0}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.bar{transition:width .2s}}
+
+.sec{margin:22px 0 10px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
+.sec h2{font-size:16px;margin:0;font-weight:600}
+.sec .sub{color:var(--muted);font-size:12px}
+.tile .rows{margin-top:4px}
+.tile .yr{display:grid;grid-template-columns:42px 1fr auto;gap:6px;align-items:baseline;padding:2px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tile .yr:first-child{border-top:0}
+.tile .yr b{font-weight:600}
+.tile .yr .d{color:var(--ink2);font-size:12px}
+.tile .item{margin-top:6px;color:var(--ink2);font-size:12px;font-weight:600}
+.tile .line{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums;padding:2px 0}
+.tile .small{font-size:12px;color:var(--muted)}
+.tiles.vol{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.cover{color:var(--ink2);font-size:12px;margin:-4px 0 12px}
+.rawwrap{overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);height:540px}
+.rawwrap table{table-layout:fixed;min-width:1700px}
+.rawwrap td{overflow:hidden;text-overflow:ellipsis;height:30px;padding-top:0;padding-bottom:0}
+.rawwrap tr.sp td{height:auto;padding:0;border:0}
+.hint{color:var(--muted);font-size:12px}
+.chipgroup{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chipgroup .gl{color:var(--muted);font-size:12px;margin-right:2px}
+td.sz{min-width:200px;white-space:normal}
+a.lnk{color:var(--accent);cursor:pointer;text-decoration:underline}
+
+#gate{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+#gate .box{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:24px}
+#gate h1{font-size:20px;margin:0 0 4px}
+#gate p{color:var(--ink2);margin:0 0 16px}
+#gate input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;margin-bottom:10px}
+#gate .btn{width:100%;padding:9px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+#gate .chk{margin:2px 0 14px}
+.gate-msg{color:var(--bad);min-height:1.4em;margin-top:8px;font-size:13px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div id="gate"></div>
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <h1>Mart Delivery Report</h1>
+    <span class="src" id="srcline"></span>
+  </header>
+  <div class="filters" id="filters" role="group" aria-label="Filters"></div>
+  <main id="main"></main>
+  <footer class="defs" id="defs"></footer>
+</div>
+<div id="tip" role="tooltip"></div>
+<script>
+"use strict";
+/* ---- unlock: the data files are AES-256-GCM encrypted; the key comes from the passphrase (PBKDF2-SHA256) ---- */
+const ctx = {pass:null};
+async function decryptBlob(buf, pass){
+  const u = new Uint8Array(buf);
+  if (new TextDecoder().decode(u.slice(0,4)) !== 'MPD1') throw Object.assign(new Error('format'),{bad:true});
+  const it = new DataView(buf).getUint32(4,false), salt=u.slice(8,24), iv=u.slice(24,36), ct=u.slice(36);
+  const enc = new TextEncoder();
+  const km = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:it,hash:'SHA-256'}, km, {name:'AES-GCM',length:256}, false, ['decrypt']);
+  let plain;
+  try { plain = await crypto.subtle.decrypt({name:'AES-GCM',iv,additionalData:enc.encode('MPD1')}, key, ct); }
+  catch(e){ throw Object.assign(new Error('wrong passphrase'),{wrongPass:true}); }
+  const text = await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  return JSON.parse(text);
+}
+async function fetchDecrypt(name, pass){
+  let r;
+  try { r = await fetch(name, {cache:'no-cache'}); } catch(e){ throw Object.assign(new Error('network'),{network:true}); }
+  if (!r.ok) throw Object.assign(new Error('missing '+name),{network:true});
+  return decryptBlob(await r.arrayBuffer(), pass);
+}
+const loadChecks = pass => fetchDecrypt('checks.enc', pass);
+
+const gate = document.getElementById('gate');
+function showGate(note){
+  gate.hidden = false; gate.textContent='';
+  const pw = document.createElement('input'); pw.type='password'; pw.id='pw'; pw.autocomplete='current-password'; pw.setAttribute('aria-label','Passphrase');
+  const keep = document.createElement('input'); keep.type='checkbox'; keep.id='keep';
+  const msg = document.createElement('div'); msg.className='gate-msg'; msg.setAttribute('role','alert'); msg.textContent = note||'';
+  const btn = document.createElement('button'); btn.type='button'; btn.className='btn'; btn.textContent='Unlock';
+  const go = async ()=>{
+    if (!pw.value) { msg.textContent='Enter the passphrase.'; return; }
+    btn.disabled = true; msg.textContent='Unlocking…';
+    try { await unlockWith(pw.value, keep.checked); }
+    catch(e){ btn.disabled=false; msg.textContent = e.wrongPass ? 'That passphrase did not open the report.' : 'Could not load the report. Check your connection and try again.'; }
+  };
+  btn.addEventListener('click',go); pw.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+  const keepLbl = document.createElement('label'); keepLbl.className='chk'; keepLbl.append(keep,'Keep me unlocked on this device');
+  const box = document.createElement('div'); box.className='box';
+  const h1 = document.createElement('h1'); h1.textContent='Mart Delivery Report';
+  const p = document.createElement('p'); p.textContent='Enter the passphrase you were given to see your deliveries.';
+  box.append(h1,p,pw,keepLbl,btn,msg); gate.append(box); pw.focus();
+}
+async function unlockWith(pass, remember){
+  const D = await fetchDecrypt('data.enc', pass);
+  ctx.pass = pass;
+  if (remember){ try { localStorage.setItem('mdr-pass', pass); } catch(e){} }
+  gate.hidden = true; document.getElementById('app').hidden = false;
+  startApp(D);
+}
+(async function(){
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if (!(window.crypto && crypto.subtle)) { showGate('This browser cannot open the report. Use a current version of Chrome, Edge, Safari or Firefox over https.'); return; }
+  let saved = null; try { saved = localStorage.getItem('mdr-pass'); } catch(e){}
+  if (saved){ try { await unlockWith(saved, false); return; } catch(e){ if (e.wrongPass){ try{localStorage.removeItem('mdr-pass');}catch(_){} } else { showGate('Could not load the report. Check your connection and try again.'); return; } } }
+  showGate();
+})();
+
+/* ---- the report ---- */
+function startApp(D){
+"use strict";
+
+const F = {}; D.fields.forEach((f,i)=>F[f]=i);
+const R = D.rows;
+const DIM = D.dims;
+const CURRENT = Math.max(...R.map(r=>r[F.cy]));
+const ALLYEARS = [...new Set(R.map(r=>r[F.cy]))].sort((a,b)=>a-b);
+
+/* ---------- helpers ---------- */
+function h(tag, attrs, ...kids){
+  const e = document.createElement(tag);
+  for (const k in (attrs||{})){
+    const v = attrs[k];
+    if (v === false || v == null) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c != null) e.append(c.nodeType ? c : document.createTextNode(String(c)));
+  return e;
+}
+const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (v,d=0)=> v==null||isNaN(v) ? '–' : v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const sgn = (v,d=0)=> v==null||isNaN(v) ? '' : (v>0?'+':v<0?'−':'')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dateOf = d => new Date(d*86400000);
+const iso = d => d==null ? '' : dateOf(d).toISOString().slice(0,10);
+const lblDate = d => { const x=dateOf(d); return MON[x.getUTCMonth()]+' '+x.getUTCDate(); };
+const lblLong = d => { const x=dateOf(d); return MON[x.getUTCMonth()]+' '+x.getUTCDate()+', '+x.getUTCFullYear(); };
+const weekStart = d => d - ((d+3)%7);
+const tip = document.getElementById('tip');
+function showTip(ev, html){
+  tip.innerHTML = html; tip.style.display='block';
+  const w = tip.offsetWidth, hgt = tip.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + hgt > innerHeight - 8) y = ev.clientY - hgt - 14;
+  tip.style.left = Math.max(8,x)+'px'; tip.style.top = Math.max(8,y)+'px';
+}
+const hideTip = ()=>{ tip.style.display='none'; };
+
+/* ---------- state ---------- */
+const state = { cy:new Set(), grower:new Set(), cust:new Set(), lot:new Set(), variety:new Set(), origin:new Set(), pay:new Set(),
+  hidePH:true,  /* placeholder lines (lots named Missing…, Contract Shortfall) are always left out */ view:'report', groupBy:'cust',
+  sumMetrics:new Set(['gross','net1','net2','pg','prime','sg','us1','bruise','color','size']),
+  sortKey:'date', sortDir:-1, search:'', dqTier:'all', dqSel:true, dqLimit:300 };
+
+const FILTERS = [
+  {key:'cy', label:'Crop year', opts: ALLYEARS.slice().reverse().map(y=>({v:y,label:String(y)}))},
+  {key:'grower', label:'Grower', opts: DIM.growers.map((n,i)=>({v:i,label:n}))},
+  {key:'cust', label:'Customer', opts: DIM.customers.map((n,i)=>({v:i,label:n}))},
+  {key:'lot', label:'Lot', opts: DIM.lots.map((n,i)=>({v:i,label:n}))},
+  {key:'variety', label:'Variety', opts: DIM.varieties.map((n,i)=>({v:i,label:n}))},
+  {key:'origin', label:'Potato origin', opts: DIM.origins.map((n,i)=>({v:i,label:n}))},
+  {key:'pay', label:'Pay rate', opts: DIM.payrates.map((n,i)=>({v:i,label:n}))},
+];
+function activeYears(){ return state.cy.size ? [...state.cy].sort((a,b)=>a-b) : [CURRENT]; }
+let _cache = null;
+function filtered(){
+  if (_cache) return _cache;
+  const ys = new Set(activeYears());
+  const s = state, ok = (set, v)=> set.size===0 || set.has(v);
+  _cache = R.filter(r => ys.has(r[F.cy]) && ok(s.grower,r[F.grower]) && ok(s.cust,r[F.cust]) && ok(s.lot,r[F.lot]) &&
+    ok(s.variety,r[F.variety]) && ok(s.origin,r[F.origin]) && ok(s.pay,r[F.pay]) && !(s.hidePH && r[F.placeholder]));
+  return _cache;
+}
+
+/* ---------- metrics ---------- */
+const VOL = [
+  {k:'gross', f:'gross', label:'Gross CWT', note:'Weight delivered'},
+  {k:'net1',  f:'net1',  label:'1st Net CWT', note:'Gross minus DRFM (dirt, rock, foreign material)'},
+  {k:'net2',  f:'net2',  label:'2nd Net CWT', note:'1st Net minus Rot/Green'},
+  {k:'pg',    f:'pg',    label:'Process Grade CWT', note:'Taken out of 2nd Net'},
+  {k:'prime', f:'prime', label:'Prime Payables CWT', note:'2nd Net minus Process Grade'},
+];
+const QUAL = [
+  {k:'sg', f:'sg', label:'Specific Gravity', d:3},
+  {k:'us1', f:'us1', label:'US #1 %', d:1},
+  {k:'bruise', f:'bruise', label:'Bruise Free %', d:1},
+  {k:'color', f:'color', label:'Color Points', d:1},
+];
+/* Size is recorded in a different basis per customer: a weight class (percent) or average tuber length (inches). Never mix bases. */
+const isLen = b => /length/i.test(b);
+const sizeUnit = b => isLen(b) ? 'in' : (/creamer/i.test(b) ? '' : '%');
+const sizeDec = b => isLen(b) || /creamer/i.test(b) ? 2 : 1;
+const sizeText = (b,v) => v==null ? '–' : fmt(v,sizeDec(b)) + (sizeUnit(b)==='%' ? '%' : sizeUnit(b)? ' '+sizeUnit(b) : '');
+const sizeName = b => isLen(b) ? 'avg tuber length' : (/^(6|8) oz$/.test(b) ? 'over '+b : b);
+const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
+
+function agg(rows){
+  const o = {n:0, vol:{gross:0,net1:0,net2:0,pg:0,prime:0}, q:{}, size:new Map()};
+  for (const Q of QUAL) o.q[Q.k] = {sw:0,w:0,n:0,v:null};
+  for (const r of rows){
+    o.n++;
+    for (const V of VOL) o.vol[V.k] += r[F[V.f]]||0;
+    const g = r[F.net1];   // quality is weighted by 1st Net CWT
+    if (!(g > 0)) continue;
+    for (const Q of QUAL){ const v=r[F[Q.f]]; if (v==null) continue; const a=o.q[Q.k]; a.sw+=v*g; a.w+=g; a.n++; }
+    const sv = r[F.size];
+    if (sv!=null){
+      const b = DIM.sizecats[r[F.sizecat]] || '(no basis)';
+      let a = o.size.get(b); if(!a){ a={sw:0,w:0,n:0,v:null}; o.size.set(b,a); }
+      a.sw+=sv*g; a.w+=g; a.n++;
+    }
+  }
+  for (const Q of QUAL){ const a=o.q[Q.k]; a.v = a.w>0 ? a.sw/a.w : null; }
+  o.size.forEach(a=>{ a.v = a.w>0 ? a.sw/a.w : null; });
+  return o;
+}
+
+/* customer colors: fixed by entity (overall volume), never by filter */
+const totByCust = new Array(DIM.customers.length).fill(0);
+for (const r of R) if (r[F.gross]) totByCust[r[F.cust]] += r[F.gross];
+const custRank = DIM.customers.map((_,i)=>i).sort((a,b)=>totByCust[b]-totByCust[a]);
+const custSlot = {}; custRank.slice(0,7).forEach((c,i)=>custSlot[c]=i+1);
+const custColor = c => custSlot[c] ? `var(--c${custSlot[c]})` : 'var(--other)';
+
+/* ---------- filters UI ---------- */
+function labelFor(def){
+  const set = state[def.key];
+  if (def.key==='cy' && set.size===0) return `${def.label}: ${CURRENT} (default)`;
+  if (set.size===0) return `${def.label}: All`;
+  if (set.size===1){ const v=[...set][0]; return `${def.label}: ${def.opts.find(o=>o.v===v).label}`; }
+  return `${def.label}: ${set.size} selected`;
+}
+const msButtons = {};
+function buildFilters(){
+  const box = document.getElementById('filters');
+  box.textContent='';
+  for (const def of FILTERS){
+    const btn = h('button',{class:'ms-btn',type:'button','aria-haspopup':'true','aria-expanded':'false',id:'f-'+def.key});
+    const search = h('input',{type:'search',class:'search ms-search',placeholder:'Search '+def.label.toLowerCase(),id:'fs-'+def.key,'aria-label':'Search '+def.label});
+    const list = h('div',{class:'ms-list'});
+    const info = h('span');
+    const clear = h('button',{class:'link',type:'button'},'Clear');
+    const pop = h('div',{class:'ms-pop',hidden:true}, search, list, h('div',{class:'ms-foot'}, info, clear));
+    const wrap = h('div',{class:'ms'}, btn, pop);
+    const paint = ()=>{
+      const q = search.value.trim().toLowerCase();
+      const items = def.opts.filter(o=>!q || o.label.toLowerCase().includes(q));
+      list.textContent='';
+      for (const o of items.slice(0,250)){
+        const cb = h('input',{type:'checkbox'}); cb.checked = state[def.key].has(o.v);
+        cb.addEventListener('change',()=>{ cb.checked ? state[def.key].add(o.v) : state[def.key].delete(o.v); changed(); });
+        list.append(h('label',{}, cb, o.label));
+      }
+      info.textContent = items.length>250 ? `Showing 250 of ${items.length}. Type to narrow.` : `${items.length} options`;
+    };
+    btn.textContent = labelFor(def);
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const open = pop.hidden;
+      document.querySelectorAll('.ms-pop').forEach(p=>p.hidden=true);
+      pop.hidden = !open; btn.setAttribute('aria-expanded', String(open));
+      if (open){ paint(); search.focus(); }
+    });
+    pop.addEventListener('click',e=>e.stopPropagation());
+    search.addEventListener('input',paint);
+    clear.addEventListener('click',()=>{ state[def.key].clear(); search.value=''; paint(); changed(); });
+    msButtons[def.key] = {btn, def};
+    box.append(wrap);
+  }
+  box.append(h('span',{class:'spacer'}));
+  box.append(h('span',{class:'count',id:'count','aria-live':'polite'}));
+  document.addEventListener('click',()=>{ document.querySelectorAll('.ms-pop').forEach(p=>p.hidden=true); });
+  document.addEventListener('keydown',e=>{ if (e.key==='Escape') document.querySelectorAll('.ms-pop').forEach(p=>p.hidden=true); });
+}
+function changed(){ _cache=null; state.dqLimit=300; renderMain(); }
+
+/* ---------- summary boxes (single year = value, several years = comparison) ---------- */
+function summaryBoxes(rows){
+  const ys = activeYears(), multi = ys.length>1;
+  const per = {}; ys.forEach(y=>per[y]=agg(rows.filter(r=>r[F.cy]===y)));
+  const frag = document.createDocumentFragment();
+
+  // tile: items = [{label, get:(agg)=>{v,text,sub}, delta:'pct'|'abs', d}]
+  const latest = ys[ys.length-1];
+  function tile(title, note, items, volOnly){
+    const yy = volOnly ? [latest] : ys, multi = yy.length>1;
+    const box = h('div',{class:'tile'}, h('div',{class:'k'},title));
+    if (!multi && items.length===1){
+      const x = items[0].get(per[yy[0]]);
+      box.append(h('div',{class:'v'},x.text), h('div',{class:'s'},x.sub||''));
+    } else if (!multi){
+      const rowsBox = h('div',{class:'rows'});
+      for (const it of items){ const x = it.get(per[yy[0]]); rowsBox.append(h('div',{class:'line'}, h('span',{},it.label), h('b',{},x.text)), h('div',{class:'small'},x.sub||'')); }
+      if (!items.length) rowsBox.append(h('div',{class:'small'},'None reported in this selection'));
+      box.append(rowsBox);
+    } else {
+      const rowsBox = h('div',{class:'rows'});
+      for (const it of items){
+        if (it.label) rowsBox.append(h('div',{class:'item'},it.label));
+        let prev=null;
+        for (const y of yy){
+          const x = it.get(per[y]);
+          let d = '';
+          if (prev!=null && x.v!=null){
+            d = it.delta==='pct' ? (prev!==0 ? sgn((x.v-prev)/prev*100,1)+'%' : '') : sgn(x.v-prev, it.dd??1);
+          }
+          rowsBox.append(h('div',{class:'yr'}, h('span',{class:'muted'},String(y)), h('span',{}, h('b',{},x.text), x.sub?h('span',{class:'small'},'  '+x.sub):null), h('span',{class:'d'},d)));
+          if (x.v!=null) prev = x.v;
+        }
+      }
+      if (!items.length) rowsBox.append(h('div',{class:'small'},'None reported in this selection'));
+      box.append(rowsBox);
+    }
+    if (note) box.append(h('div',{class:'small',style:'margin-top:6px'},note));
+    return box;
+  }
+
+  // volume
+  const volRow = h('div',{class:'tiles vol'});
+  for (const V of VOL){
+    volRow.append(tile(V.label, V.note, [{label:'', delta:'pct',
+      get:a=>({v:a.vol[V.k], text:fmt(a.vol[V.k]), sub: V.k==='gross' ? `${fmt(a.n)} records` : (a.vol.gross>0 ? fmt(a.vol[V.k]/a.vol.gross*100,1)+'% of gross' : '')})}], true));
+  }
+  // quality
+  const qRow = h('div',{class:'tiles vol'});
+  const sg = QUAL.find(q=>q.k==='sg');
+  qRow.append(tile('Specific Gravity','Weighted by 1st Net CWT',[{label:'',delta:'abs',dd:3,get:a=>({v:a.q.sg.v,text:fmt(a.q.sg.v,3),sub:`n=${fmt(a.q.sg.n)}`})}]));
+  // size: one item per basis present in any year
+  const bases = new Map();
+  ys.forEach(y=>per[y].size.forEach((a,b)=>bases.set(b,(bases.get(b)||0)+a.w)));
+  const baseList = [...bases.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  qRow.append(tile('Size','Basis differs by customer. Never averaged across bases.', baseList.map(b=>({label:cap(sizeName(b)),delta:'abs',dd:sizeDec(b),
+    get:a=>{ const x=a.size.get(b); return {v:x?x.v:null,text:x?sizeText(b,x.v):'–',sub:x?`n=${fmt(x.n)}`:''}; }}))));
+  for (const [k,label] of [['us1','US #1 %'],['bruise','Bruise Free %'],['color','Color Points']]){
+    const Q = QUAL.find(q=>q.k===k);
+    qRow.append(tile(label,'Weighted by 1st Net CWT',[{label:'',delta:'abs',dd:1,get:a=>({v:a.q[k].v,text:fmt(a.q[k].v,1),sub:`n=${fmt(a.q[k].n)}`})}]));
+  }
+  frag.append(h('div',{class:'sec'}, h('h2',{},`Volume delivered, crop year ${latest}`), h('span',{class:'sub'},'Hundredweight (CWT). Percent shown is of Gross.' + (multi?` Volume is shown for ${latest} only. Earlier selected years are compared on quality.`:''))), volRow);
+  frag.append(h('div',{class:'sec'}, h('h2',{},'Quality'), h('span',{class:'sub'},'Weighted by 1st Net CWT across records that report the value. n is the number of records.' + (multi?' Change is against the previous selected year.':''))), qRow);
+  return frag;
+}
+
+/* ---------- charts ---------- */
+function hbarsCard(title, sub, items, color){
+  const max = Math.max(1, ...items.map(i=>i.value));
+  const box = h('div',{class:'hbars'});
+  for (const it of items){
+    box.append(h('div',{class:'row'}, h('div',{class:'lbl',title:it.label},it.label),
+      h('div',{class:'track'}, h('div',{class:'bar',style:`width:${(it.value/max*100).toFixed(1)}%;background:${it.color||color}`})),
+      h('div',{class:'val'},fmt(it.value))));
+  }
+  if (!items.length) box.append(h('div',{class:'empty'},'No data in this selection.'));
+  return h('div',{class:'card'}, h('h2',{},title), h('div',{class:'sub'},sub), box);
+}
+function sumBy(rows, f, top, labels, colorFn){
+  const m = new Map();
+  for (const r of rows){ const k=r[F[f]]; m.set(k,(m.get(k)||0)+(r[F.gross]||0)); }
+  let arr = [...m.entries()].sort((a,b)=>b[1]-a[1]);
+  const rest = arr.slice(top).reduce((a,x)=>a+x[1],0);
+  arr = arr.slice(0,top).map(([k,v])=>({label:labels[k],value:v,color:colorFn?colorFn(k):null}));
+  if (rest>0) arr.push({label:`All others (${m.size-top})`,value:rest,color:'var(--other)'});
+  return arr;
+}
+function charts(rows){
+  const latest = activeYears().slice(-1)[0];
+  const vrows = rows.filter(r=>r[F.cy]===latest), tag = ` Crop year ${latest}.`;
+  const grid = h('div',{class:'grid'});
+  grid.append(hbarsCard('Gross CWT by customer','Top 10 customers in this selection.'+tag, sumBy(vrows,'cust',10,DIM.customers,custColor)));
+  grid.append(hbarsCard('Gross CWT by grower','Growers in this selection.'+tag, sumBy(vrows,'grower',12,DIM.growers), 'var(--c1)'));
+  grid.append(hbarsCard('Gross CWT by variety','Top 10 varieties in this selection.'+tag, sumBy(vrows,'variety',10,DIM.varieties), 'var(--c3)'));
+  grid.append(hbarsCard('Gross CWT by pay rate','Pay rate as recorded on each record.'+tag, sumBy(vrows,'pay',6,DIM.payrates), 'var(--c7)'));
+  return grid;
+}
+
+/* ---------- comparison table ---------- */
+const GROUPS = [['cust','Customer',DIM.customers],['grower','Grower',DIM.growers],['variety','Variety',DIM.varieties],['origin','Potato origin',DIM.origins],['lot','Lot',DIM.lots],['pay','Pay rate',DIM.payrates]];
+function summaryTable(rows){
+  const ys = activeYears();
+  const wrap = h('div');
+  const gsel = h('select',{id:'groupBy','aria-label':'Group by'}, GROUPS.map(g=>h('option',{value:g[0],selected:g[0]===state.groupBy},g[1])));
+  gsel.addEventListener('change',()=>{ state.groupBy=gsel.value; renderMain(); });
+  const chip = (k,label)=>{ const b=h('button',{class:'chip',type:'button','aria-pressed':String(state.sumMetrics.has(k))},label);
+    b.addEventListener('click',()=>{ state.sumMetrics.has(k)?state.sumMetrics.delete(k):state.sumMetrics.add(k); renderMain(); }); return b; };
+  wrap.append(h('div',{class:'toolbar'}, h('label',{for:'groupBy',class:'muted'},'Group by'), gsel,
+    h('div',{class:'chipgroup'}, h('span',{class:'gl'},'Volume'), VOL.map(v=>chip(v.k,v.label.replace(' CWT','')))),
+    h('div',{class:'chipgroup'}, h('span',{class:'gl'},'Quality'), QUAL.map(q=>chip(q.k,q.label)), chip('size','Size'))));
+  if (!rows.length){ wrap.append(h('div',{class:'empty'},'No records match these filters.')); return wrap; }
+  const g = GROUPS.find(x=>x[0]===state.groupBy);
+  const byKey = new Map();
+  for (const r of rows){ const k=r[F[g[0]]]; let o=byKey.get(k); if(!o){o=new Map(); byKey.set(k,o);} let a=o.get(r[F.cy]); if(!a){a=[];o.set(r[F.cy],a);} a.push(r); }
+  const latest = ys[ys.length-1], multi = ys.length>1;
+  const cols = [{k:'n',label:'Records',one:true}];
+  VOL.forEach(v=>state.sumMetrics.has(v.k)&&cols.push({k:v.k,label:v.label,vol:true,one:true}));
+  QUAL.forEach(q=>state.sumMetrics.has(q.k)&&cols.push({k:q.k,label:q.label,q:q}));
+  if (state.sumMetrics.has('size')) cols.push({k:'size',label:'Size (basis shown)'});
+  const yrsFor = c => (c.one ? [latest] : ys);
+  const thead = h('thead'); const r1 = h('tr'); r1.append(h('th',{class:'l',rowspan:multi?2:1},g[1]));
+  cols.forEach(c=>{ const n=yrsFor(c).length; r1.append(h('th',{class:(multi&&!c.one)?'grp':'',colspan:n,rowspan:(multi&&c.one)?2:1},c.label+(multi&&c.one?` (${latest})`:''))); });
+  thead.append(r1);
+  if (multi){ const r2=h('tr'); cols.forEach(c=>{ if(!c.one) ys.forEach(y=>r2.append(h('th',{class:'yr'},String(y)))); }); thead.append(r2); }
+  const cell = (a,c)=>{
+    if (c.k==='n') return h('td',{},fmt(a.n));
+    if (c.vol) return h('td',{}, a.n?fmt(a.vol[c.k]):'–');
+    if (c.q){ const m=a.q[c.k]; return h('td',{}, m.v==null?'–':fmt(m.v,c.q.d), m.v==null?null:h('span',{class:'n'},`n=${fmt(m.n)}`)); }
+    if (c.k==='size'){
+      if (!a.size.size) return h('td',{},'–');
+      const td = h('td',{class:'sz'}); [...a.size.entries()].sort((x,y)=>y[1].w-x[1].w).forEach(([b,m])=>td.append(h('span',{class:'n',style:'color:var(--ink)'},`${sizeText(b,m.v)} `, h('span',{class:'muted'},`${sizeName(b)}, n=${fmt(m.n)}`)))); return td;
+    }
+  };
+  const rowsOut = [...byKey.entries()].map(([k,o])=>{ const per={}; ys.forEach(y=>{ per[y]=agg(o.get(y)||[]); }); const tot=per[latest].vol.gross; const any=ys.reduce((s,y)=>s+per[y].n,0); return {k,per,tot,any}; }).sort((a,b)=>b.tot-a.tot||b.any-a.any);
+  const tb = h('tbody');
+  for (const ro of rowsOut){ const tr=h('tr'); tr.append(h('td',{class:'l'},g[2][ro.k])); cols.forEach(c=>yrsFor(c).forEach(y=>tr.append(cell(ro.per[y],c)))); tb.append(tr); }
+  const trT = h('tr',{class:'total'}); trT.append(h('td',{class:'l'},'All in selection'));
+  const totPer = {}; ys.forEach(y=>totPer[y]=agg(rows.filter(r=>r[F.cy]===y)));
+  cols.forEach(c=>yrsFor(c).forEach(y=>trT.append(cell(totPer[y],c))));
+  tb.append(trT);
+  wrap.append(h('div',{class:'tablewrap',style:'max-height:560px'}, h('table',{}, thead, tb)));
+  return wrap;
+}
+
+/* ---------- raw data (virtual scroll, export) ---------- */
+const RAW_COLS = [
+  {k:'date', label:'Delivered', w:116, l:1, show:r=>iso(r[F.date]), exp:r=>iso(r[F.date]), sort:r=>r[F.date]??-1e9},
+  {k:'cy', label:'Crop yr', w:70, show:r=>String(r[F.cy]), exp:r=>r[F.cy], sort:r=>r[F.cy]},
+  {k:'lot', label:'Lot', w:150, l:1, show:r=>DIM.lots[r[F.lot]], exp:r=>DIM.lots[r[F.lot]], sort:r=>DIM.lots[r[F.lot]]},
+  {k:'cust', label:'Customer', w:170, l:1, show:r=>DIM.customers[r[F.cust]], exp:r=>DIM.customers[r[F.cust]], sort:r=>DIM.customers[r[F.cust]]},
+  {k:'grower', label:'Grower', w:170, l:1, show:r=>DIM.growers[r[F.grower]], exp:r=>DIM.growers[r[F.grower]], sort:r=>DIM.growers[r[F.grower]]},
+  {k:'variety', label:'Variety', w:130, l:1, show:r=>DIM.varieties[r[F.variety]], exp:r=>DIM.varieties[r[F.variety]], sort:r=>DIM.varieties[r[F.variety]]},
+  {k:'origin', label:'Potato origin', w:140, l:1, show:r=>DIM.origins[r[F.origin]], exp:r=>DIM.origins[r[F.origin]], sort:r=>DIM.origins[r[F.origin]]},
+  {k:'pay', label:'Pay rate', w:90, l:1, show:r=>DIM.payrates[r[F.pay]], exp:r=>DIM.payrates[r[F.pay]], sort:r=>DIM.payrates[r[F.pay]]},
+  ...VOL.map(v=>({k:v.k, label:v.label, w:110, show:r=>fmt(r[F[v.f]],1), exp:r=>r[F[v.f]], sort:r=>r[F[v.f]]??-1e9})),
+  {k:'sg', label:'Specific Gravity', w:100, show:r=>fmt(r[F.sg],3), exp:r=>r[F.sg], sort:r=>r[F.sg]??-1e9},
+  {k:'sizecat', label:'Size basis', w:170, l:1, show:r=>sizeName(DIM.sizecats[r[F.sizecat]]||'')||'', exp:r=>sizeName(DIM.sizecats[r[F.sizecat]]||'')||'', sort:r=>DIM.sizecats[r[F.sizecat]]||''},
+  {k:'size', label:'Size value', w:90, show:r=>r[F.size]==null?'':sizeText(DIM.sizecats[r[F.sizecat]],r[F.size]), exp:r=>r[F.size], sort:r=>r[F.size]??-1e9},
+  {k:'us1', label:'US #1 %', w:80, show:r=>fmt(r[F.us1],2), exp:r=>r[F.us1], sort:r=>r[F.us1]??-1e9},
+  {k:'bruise', label:'Bruise Free %', w:100, show:r=>fmt(r[F.bruise],2), exp:r=>r[F.bruise], sort:r=>r[F.bruise]??-1e9},
+  {k:'color', label:'Color points', w:90, show:r=>fmt(r[F.color],1), exp:r=>r[F.color], sort:r=>r[F.color]??-1e9},
+  {k:'xref', label:'Cross ref', w:110, l:1, show:r=>D.strs[r[F.xref]]||'', exp:r=>D.strs[r[F.xref]]||'', sort:r=>D.strs[r[F.xref]]||''},
+  {k:'doc', label:'Doc #', w:90, l:1, show:r=>D.strs[r[F.doc]]||'', exp:r=>D.strs[r[F.doc]]||'', sort:r=>D.strs[r[F.doc]]||''},
+];
+const ROWH = 30, VIEWH = 540;
+let rawRows = [];
+function rawSorted(){
+  const q = state.search.trim().toLowerCase();
+  let rows = filtered();
+  if (q) rows = rows.filter(r=>[DIM.lots[r[F.lot]],DIM.customers[r[F.cust]],DIM.growers[r[F.grower]],DIM.varieties[r[F.variety]],DIM.origins[r[F.origin]],D.strs[r[F.xref]],D.strs[r[F.doc]]].some(s=>String(s).toLowerCase().includes(q)));
+  const col = RAW_COLS.find(c=>c.k===state.sortKey) || RAW_COLS[0];
+  return rows.slice().sort((a,b)=>{ const x=col.sort(a), y=col.sort(b); return (x<y?-1:x>y?1:0)*state.sortDir; });
+}
+const csvCell = v => { if (v==null) return ''; const s=String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+function toCSV(rows){ return [RAW_COLS.map(c=>csvCell(c.label)).join(',')].concat(rows.map(r=>RAW_COLS.map(c=>csvCell(c.exp(r))).join(','))).join('\r\n'); }
+function rawSection(){
+  const sec = h('div',{id:'rawsec'});
+  const search = h('input',{type:'search',class:'search',id:'rawsearch',placeholder:'Search lot, customer, grower, variety, origin, cross ref',style:'min-width:380px;cursor:text','aria-label':'Search records'});
+  search.value = state.search;
+  const status = h('span',{class:'hint',id:'exportmsg','aria-live':'polite'});
+  const copy = h('button',{class:'btn',type:'button',onclick:async()=>{
+    const text = toCSV(rawRows);
+    try { await navigator.clipboard.writeText(text); status.textContent = `Copied ${fmt(rawRows.length)} rows as CSV. Paste into Excel.`; }
+    catch(e){ status.textContent = 'This viewer blocked copying. Use Download CSV instead.'; }
+  }},'Copy CSV');
+  const dl = h('button',{class:'btn',type:'button',onclick:()=>{
+    try {
+      const blob = new Blob(['﻿'+toCSV(rawRows)],{type:'text/csv;charset=utf-8'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `mart-deliveries-${activeYears().join('-')}.csv`;
+      document.body.append(a); a.click(); a.remove();
+      status.textContent = `Download started for ${fmt(rawRows.length)} rows. If nothing downloaded, this viewer blocks downloads: use Copy CSV.`;
+    } catch(e){ status.textContent = 'Download is blocked in this viewer. Use Copy CSV.'; }
+  }},'Download CSV');
+  sec.append(h('div',{class:'toolbar'}, search, copy, dl, status));
+  const scroller = h('div',{class:'rawwrap',id:'rawscroll',tabindex:'0','aria-label':'Delivery records, scrollable'});
+  const table = h('table'); const colg = h('colgroup'); RAW_COLS.forEach(c=>colg.append(h('col',{style:`width:${c.w}px`}))); table.append(colg);
+  table.append(h('thead',{}, h('tr',{}, RAW_COLS.map(c=>h('th',{class:'sortable '+(c.l?'l':''),'aria-sort':state.sortKey===c.k?(state.sortDir>0?'ascending':'descending'):'none',onclick:()=>{ if(state.sortKey===c.k) state.sortDir*=-1; else {state.sortKey=c.k; state.sortDir=1;} rawPaint(true); }}, c.label+(state.sortKey===c.k?(state.sortDir>0?' ▲':' ▼'):''))))));
+  const tb = h('tbody',{id:'rawtb'}); table.append(tb); scroller.append(table); sec.append(scroller);
+  const info = h('div',{class:'pager',id:'rawinfo'}); sec.append(info);
+  let tick=false;
+  scroller.addEventListener('scroll',()=>{ if (tick) return; tick=true; requestAnimationFrame(()=>{ tick=false; rawWindow(); }); });
+  search.addEventListener('input',()=>{ state.search=search.value; rawPaint(true); });
+  sec._init = ()=>rawPaint(true);
+  return sec;
+}
+function rawPaint(resort){
+  const scroller = document.getElementById('rawscroll'); if (!scroller) return;
+  if (resort){ rawRows = rawSorted(); scroller.scrollTop = 0;
+    scroller.querySelectorAll('thead th').forEach((th,i)=>{ const c=RAW_COLS[i]; th.textContent = c.label+(state.sortKey===c.k?(state.sortDir>0?' ▲':' ▼'):''); th.setAttribute('aria-sort',state.sortKey===c.k?(state.sortDir>0?'ascending':'descending'):'none'); });
+  }
+  document.getElementById('rawinfo').textContent = `${fmt(rawRows.length)} records · scroll to see all · click a column heading to sort`;
+  rawWindow();
+}
+function rawWindow(){
+  const scroller = document.getElementById('rawscroll'); if (!scroller) return;
+  const tb = document.getElementById('rawtb'); const n = rawRows.length;
+  const start = Math.max(0, Math.floor(scroller.scrollTop/ROWH)-8), end = Math.min(n, start + Math.ceil(VIEWH/ROWH) + 16);
+  tb.textContent='';
+  const sp = (hgt)=>{ const tr=h('tr',{class:'sp'}, h('td',{colspan:RAW_COLS.length,style:`height:${hgt}px`})); return tr; };
+  if (start>0) tb.append(sp(start*ROWH));
+  for (let i=start;i<end;i++){ const r=rawRows[i]; tb.append(h('tr',{}, RAW_COLS.map(c=>h('td',{class:c.l?'l':'',title:c.l?c.show(r):null}, c.show(r))))); }
+  if (end<n) tb.append(sp((n-end)*ROWH));
+  if (!n) tb.append(h('tr',{}, h('td',{colspan:RAW_COLS.length,class:'l'},'No records match these filters.')));
+}
+
+/* ---------- data checks (Mart staff) ---------- */
+let K = null;   // checks payload, loaded only when opened
+function tileS(k,v,s,sm){ return h('div',{class:'tile'}, h('div',{class:'k'},k), h('div',{class:'v'+(sm?' sm':'')},v), h('div',{class:'s'},s)); }
+function openChecks(){ state.view='checks'; location.hash='data-checks'; renderMain(); window.scrollTo(0,0); }
+function closeChecks(){ state.view='report'; history.replaceState(null,'',location.pathname+location.search); renderMain(); }
+function checksGate(){
+  const main = document.getElementById('main'); main.textContent='';
+  main.append(h('div',{class:'sec'}, h('h2',{},'Data checks'), h('a',{class:'lnk',onclick:closeChecks},'Back to report')));
+  const msg = h('div',{class:'gate-msg',role:'alert'});
+  const pw = h('input',{type:'password',id:'staffpw',class:'search',autocomplete:'current-password','aria-label':'Staff passphrase',style:'min-width:280px;cursor:text'});
+  const go = async ()=>{ msg.textContent='Opening…'; try { K = await loadChecks(pw.value); renderMain(); } catch(e){ msg.textContent = e.wrongPass ? 'That passphrase did not open the data checks.' : 'Could not load the data checks. Check your connection and try again.'; } };
+  pw.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+  main.append(h('div',{class:'note'},'The data checks list possible duplicate records and records with missing values. They need the staff passphrase.'),
+    h('div',{class:'toolbar'}, pw, h('button',{class:'btn',type:'button',onclick:go},'Open data checks')), msg);
+  pw.focus();
+}
+function checksView(){
+  const main = document.getElementById('main'); main.textContent='';
+  main.append(h('div',{class:'sec'}, h('h2',{},'Data checks'), h('span',{class:'sub'},`Export used: ${K.meta.source}. Excel row numbers refer to that file.`), h('a',{class:'lnk',onclick:closeChecks},'Back to report')));
+  const ys = new Set(activeYears());
+  const TORD = {A:0,C:1,B:2};
+  const all = K.groups.map((g,i)=>({...g,i}));
+  const groups = all.slice().sort((a,b)=>TORD[a.tier]-TORD[b.tier]||a.i-b.i).filter(g=>(state.dqTier==='all'||g.tier===state.dqTier) && (!state.dqSel || g.recs.some(r=>ys.has(r.cy))));
+  const T = t => all.filter(g=>g.tier===t);
+  const extra = g => g.recs.slice(1).reduce((a,r)=>a+(r.gross||0),0);
+  const sumX = arr => arr.reduce((a,g)=>a+extra(g),0), cnt = arr => arr.reduce((a,g)=>a+g.recs.length,0);
+  const ar = K.arith, arN = ar.gross_drfm_net1+ar.net1_rot_net2+ar.net2_pg_prime;
+  const ch = K.change;
+  main.append(h('div',{class:'tiles'},
+    tileS('Last refresh', ch.at, ch.first ? 'First refresh' : `${fmt(ch.new)} new · ${fmt(ch.changed)} changed · ${fmt(ch.removed)} removed`, true),
+    tileS('Tier A: most likely true duplicates', fmt(T('A').length), `${fmt(cnt(T('A')))} records · ${fmt(sumX(T('A')))} CWT extra`),
+    tileS('Tier C groups', fmt(T('C').length), `${fmt(cnt(T('C')))} records · ${fmt(sumX(T('C')))} CWT extra`),
+    tileS('Tier B groups', fmt(T('B').length), `${fmt(cnt(T('B')))} records · ${fmt(sumX(T('B')))} CWT extra`),
+    tileS('Without a Gross weight', fmt(K.noGross.length), 'Left out of quality averages'),
+    tileS('Placeholder lines', fmt(K.placeholders.records), `${fmt(K.placeholders.gross)} CWT (lots named Missing…, Contract Shortfall)`),
+    tileS('No delivery date', fmt(K.noDate), 'Counted in totals, left out of weekly charts'),
+    tileS('Weight arithmetic', arN===0?'0 mismatches':fmt(arN)+' mismatches', 'Gross − DRFM = 1st Net, 1st Net − Rot/Green = 2nd Net, 2nd Net − Process Grade = Prime Payables, tolerance 0.15 CWT', true)));
+  main.append(h('div',{class:'note'}, h('b',{},'How duplicates are flagged. '), 'Records are grouped when Lot, Delivery Date, Customer, Grower, Variety, Potato Origin and every weight and quality value are identical. ',
+    h('b',{},'Tier A'), ' also share Cross Reference and Document Number (or both are blank): the most likely true duplicates, listed first. ', h('b',{},'Tier B'), ' have a different Cross Reference or Document Number: possibly separate load tickets that happen to match. ',
+    h('b',{},'Tier C'), ' are not value-identical, but share Cross Reference, Delivery Date, Customer and Gross CWT while differing in lot, grower, variety or quality: one load ticket may be entered under two growers. Nothing is removed from any total.'));
+  const tsel = h('select',{id:'dqTier','aria-label':'Tier'}, [['all','All tiers'],['A','Tier A only'],['B','Tier B only'],['C','Tier C only']].map(([v,l])=>h('option',{value:v,selected:state.dqTier===v},l)));
+  tsel.addEventListener('change',()=>{ state.dqTier=tsel.value; state.dqLimit=300; checksView(); });
+  const sel = h('input',{type:'checkbox',id:'dqSel'}); sel.checked=state.dqSel;
+  sel.addEventListener('change',()=>{ state.dqSel=sel.checked; state.dqLimit=300; checksView(); });
+  main.append(h('div',{class:'toolbar'}, tsel, h('label',{class:'chk'}, sel, 'Only crop years selected above'), h('span',{class:'count'},`${fmt(groups.length)} groups`)));
+  const recRow = (r, extra) => [h('td',{class:'l',style:'font-weight:600'},r.lot), h('td',{},String(r.xl)), h('td',{},r.id??'–'), h('td',{class:'l mono'},r.xref||''), h('td',{class:'l mono'},r.doc||''), h('td',{},String(r.cy)), h('td',{class:'l'},r.date||'–'), h('td',{class:'l'},r.cust), h('td',{class:'l'},r.grower), h('td',{class:'l'},r.variety), h('td',{},fmt(r.gross,1))];
+  const head = ['Group','Tier','Lot','Excel row','ID','Cross ref','Doc #','Crop yr','Delivered','Customer','Grower','Variety','Gross CWT'];
+  const tb = h('tbody'); let shown=0;
+  for (const g of groups){
+    if (shown>=state.dqLimit) break;
+    g.recs.forEach(r=>{ shown++; tb.append(h('tr',{class:g.i%2?'g1':''}, h('td',{class:'l'},String(g.i+1)), h('td',{class:'l'},h('span',{class:'badge '+g.tier},g.tier)), recRow(r))); });
+  }
+  const lcls = i=>i<3||[5,6,8,9,10,11].includes(i)?'l':'';
+  main.append(h('div',{class:'tablewrap'}, h('table',{}, h('thead',{},h('tr',{},head.map((t,i)=>h('th',{class:lcls(i)},t)))), tb)));
+  const total = groups.reduce((a,g)=>a+g.recs.length,0);
+  if (shown<total) main.append(h('div',{class:'pager'}, h('button',{class:'btn',onclick:()=>{state.dqLimit+=500;checksView();}},'Show more'), h('span',{},`Showing ${fmt(shown)} of ${fmt(total)} records`)));
+
+  const simple = (title, recs, note)=>{
+    main.append(h('h2',{style:'font-size:14px;margin:22px 0 4px'},title)); if (note) main.append(h('div',{class:'hint',style:'margin-bottom:8px'},note));
+    if (!recs.length){ main.append(h('div',{class:'hint'},'None.')); return; }
+    const hd=['Lot','Excel row','ID','Cross ref','Doc #','Crop yr','Delivered','Customer','Grower','Variety','Gross CWT'];
+    main.append(h('div',{class:'tablewrap',style:'max-height:260px'}, h('table',{}, h('thead',{},h('tr',{},hd.map((t,i)=>h('th',{class:[0,3,4,6,7,8,9].includes(i)?'l':''},t)))), h('tbody',{},recs.map(r=>h('tr',{},recRow(r)))))));
+  };
+  simple('Records without a Gross weight', K.noGross, 'Gross CWT is blank or zero, so these records are left out of the quality averages.');
+  if (K.arithRows.length) simple('Weight arithmetic mismatches', K.arithRows, 'The weight steps do not balance for these records.');
+
+  main.append(h('h2',{style:'font-size:14px;margin:22px 0 4px'},'Changes at the last refresh'));
+  if (ch.first) main.append(h('div',{class:'hint'},'First refresh: every record counts as new.'));
+  else {
+    const tb2 = h('tbody');
+    ch.changedList.forEach(c=>tb2.append(h('tr',{}, h('td',{class:'l'},'Changed'), h('td',{class:'l',style:'font-weight:600'},c.lot), h('td',{class:'l'},c.date||'–'), h('td',{class:'l'},c.cust), h('td',{class:'l'},c.diffs.map(d=>`${d[0]}: ${d[1]??'blank'} → ${d[2]??'blank'}`).join('; ')))));
+    ch.removedList.forEach(c=>tb2.append(h('tr',{}, h('td',{class:'l'},'Removed'), h('td',{class:'l',style:'font-weight:600'},c.lot), h('td',{class:'l'},c.date||'–'), h('td',{class:'l'},c.cust), h('td',{class:'l'},`${c.grower}, Gross ${fmt(c.gross,1)}`))));
+    main.append(h('div',{class:'hint',style:'margin-bottom:8px'},`${fmt(ch.new)} new records${ch.newLots.length?' in lots '+ch.newLots.slice(0,12).join(', ')+(ch.newLots.length>12?', …':''):''}. Changed and removed records (first 100 of each) are listed below.`));
+    if (ch.changedList.length||ch.removedList.length) main.append(h('div',{class:'tablewrap',style:'max-height:260px'}, h('table',{}, h('thead',{},h('tr',{},['Kind','Lot','Delivered','Customer','Detail'].map(t=>h('th',{class:'l'},t)))), tb2)));
+  }
+
+  const ex = K.excluded;
+  main.append(h('h2',{style:'font-size:14px;margin:22px 0 4px'},'Left out of the app'));
+  const lines = [];
+  Object.entries(ex.growers).forEach(([g,v])=>lines.push(`${g}: ${fmt(v.records)} records, ${fmt(v.gross)} CWT`));
+  Object.entries(ex.old_years).forEach(([y,n])=>lines.push(`Crop year ${y}: ${fmt(n)} records`));
+  lines.push(`Test records: ${fmt(ex.test.length)}`, `Phantom volume records: ${fmt(ex.phantom.length)}`);
+  main.append(h('div',{class:'hint'}, lines.join(' · ')));
+  const exr = ex.test.concat(ex.phantom);
+  if (exr.length) main.append(h('div',{class:'tablewrap',style:'max-height:200px;margin-top:8px'}, h('table',{}, h('thead',{},h('tr',{},['Excel row','Lot','Customer','Grower','Gross CWT','Note'].map((t,i)=>h('th',{class:i===0||i===4?'':'l'},t)))),
+    h('tbody',{},exr.map(e=>h('tr',{}, h('td',{},String(e.xl)), h('td',{class:'l'},e.lot), h('td',{class:'l'},e.cust||''), h('td',{class:'l'},e.grower||''), h('td',{},fmt(e.gross,1)), h('td',{class:'l'},e.note||'')))))));
+}
+
+/* ---------- render ---------- */
+function renderMain(){
+  hideTip();
+  const rows = filtered();
+  const a = agg(rows);
+  document.getElementById('count').textContent = `${fmt(rows.length)} records selected`;
+  for (const k in msButtons){ const {btn,def}=msButtons[k]; btn.textContent=labelFor(def); btn.classList.toggle('on',state[k].size>0); btn.setAttribute('aria-expanded','false'); }
+  if (state.view==='checks'){ if (K) checksView(); else tryChecks(); return; }
+  const main = document.getElementById('main'); main.textContent='';
+  if (!rows.length){ main.append(h('div',{class:'empty'},'No records match these filters.')); return; }
+  main.append(summaryBoxes(rows));
+  main.append(h('div',{class:'sec'}, h('h2',{},'Where it went')), charts(rows));
+  main.append(h('div',{class:'sec'}, h('h2',{},'Comparison table'), h('span',{class:'sub'},activeYears().length>1?`Volume is for crop year ${activeYears().slice(-1)[0]}. Quality and size are shown for each selected year.`:'Select a second crop year to compare quality with a previous year.')), summaryTable(rows));
+  main.append(h('div',{class:'sec'}, h('h2',{},'All delivery records'), h('span',{class:'sub'},'Every record behind the numbers above. Scroll, sort, search, export.')));
+  const raw = rawSection(); main.append(raw); raw._init();
+}
+async function tryChecks(){
+  checksGate();
+  try { K = await loadChecks(ctx.pass); renderMain(); } catch(e){ /* needs the staff passphrase */ }
+}
+function boot(){
+  const when = new Date(D.meta.built.replace(' UTC','Z').replace(' ','T'));
+  document.getElementById('srcline').textContent = isNaN(when) ? '' : 'Data updated ' + when.toLocaleString([], {dateStyle:'medium', timeStyle:'short'});
+  document.getElementById('defs').append(
+    h('p',{},h('b',{},'How the weights fit together. '),'Gross − DRFM (dirt, rock, foreign material) = 1st Net. 1st Net − Rot/Green = 2nd Net. 2nd Net − Process Grade = Prime Payables. A blank DRFM, Rot/Green or Process Grade weight on a record is treated as zero; every record in the file balances to within 0.15 CWT.'),
+    h('p',{},h('b',{},'Quality. '),'Specific Gravity, US #1, Bruise Free and Color Points are averages weighted by 1st Net CWT, the volume most incentives are based on, across the records that report that value. n is the number of those records.'),
+    h('p',{},h('b',{},'Size. '),'For most customers size is the percent of tubers larger than 6 oz or 8 oz. McCain records average tuber length in inches. Size is always shown with its basis and is never averaged across bases, so it cannot be compared between customers that use different bases.'),
+    h('p',{},'Destinations such as Dumped count as potatoes delivered. Crop year comes from the report\'s Crop Year Value, which matches the year in the lot number. ', h('a',{class:'lnk',onclick:openChecks},'Data checks (for Mart staff)'), ' · ', h('a',{class:'lnk',onclick:()=>{ try{localStorage.removeItem('mdr-pass');}catch(e){} location.hash=''; location.reload(); }},'Lock')));
+  if (location.hash==='#data-checks') state.view='checks';
+  buildFilters(); renderMain();
+  addEventListener('hashchange',()=>{ state.view = location.hash==='#data-checks'?'checks':'report'; renderMain(); });
+  let t; addEventListener('resize',()=>{ clearTimeout(t); t=setTimeout(()=>{ if(state.view==='report') renderMain(); },200); });
+}
+
+boot();
+}
+</script>
+</body>
+</html>
