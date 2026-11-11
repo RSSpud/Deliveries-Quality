@@ -334,6 +334,7 @@ const sizeText = (b,v) => v==null ? '–' : fmt(v,sizeDec(b)) + (sizeUnit(b)==='
 const sizeName = b => isLen(b) ? 'avg tuber length' : (/^(6|8) oz$/.test(b) ? 'over '+b : b);
 const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
 
+const NO_SIZE = new Set(DIM.payrates.map((p,i)=>/^\s*(dehy|new variety)\s*$/i.test(p)?i:-1).filter(i=>i>=0));
 function agg(rows){
   const o = {n:0, vol:{gross:0,net1:0,net2:0,pg:0,prime:0}, q:{}, size:new Map()};
   for (const Q of QUAL) o.q[Q.k] = {sw:0,w:0,n:0,v:null};
@@ -344,7 +345,8 @@ function agg(rows){
     if (!(g > 0)) continue;
     for (const Q of QUAL){ const v=r[F[Q.f]]; if (v==null) continue; const a=o.q[Q.k]; a.sw+=v*g; a.w+=g; a.n++; }
     const sv = r[F.size];
-    if (sv!=null){
+    // Size is not an incentive for Dehy, New Variety or Creamers: leave them out of the Size box (values stay in the raw table)
+    if (sv!=null && !NO_SIZE.has(r[F.pay]) && !/creamer/i.test(DIM.sizecats[r[F.sizecat]]||'')){
       const b = DIM.sizecats[r[F.sizecat]] || '(no basis)';
       let a = o.size.get(b); if(!a){ a={sw:0,w:0,n:0,v:null}; o.size.set(b,a); }
       a.sw+=sv*g; a.w+=g; a.n++;
@@ -704,6 +706,12 @@ function checksView(){
     main.append(h('div',{class:'tablewrap',style:'max-height:260px'}, h('table',{}, h('thead',{},h('tr',{},hd.map((t,i)=>h('th',{class:[0,3,4,6,7,8,9].includes(i)?'l':''},t)))), h('tbody',{},recs.map(r=>h('tr',{},recRow(r)))))));
   };
   simple('Records without a Gross weight', K.noGross, 'Gross CWT is blank or zero, so these records are left out of the quality averages.');
+  if (K.sizeAssigned && K.sizeAssigned.length){
+    main.append(h('h2',{style:'font-size:14px;margin:22px 0 4px'},'Size Category assigned by rule'));
+    main.append(h('div',{class:'hint',style:'margin-bottom:8px'},'The source has a Size % but a blank Size Category. Fresh = 8 oz; Fry = 6 oz (McCain: average tuber length). Fix the category in the source to replace the rule.'));
+    main.append(h('div',{class:'tablewrap',style:'max-height:260px'}, h('table',{}, h('thead',{},h('tr',{},['Lot','Excel row','Crop yr','Delivered','Customer','Grower','Pay rate','Assigned','Size %','1st Net CWT'].map((t,i)=>h('th',{class:[0,3,4,5,6,7].includes(i)?'l':''},t)))),
+      h('tbody',{},K.sizeAssigned.map(r=>h('tr',{},h('td',{class:'l',style:'font-weight:600'},r.lot),h('td',{},String(r.xl)),h('td',{},String(r.cy)),h('td',{class:'l'},r.date||'–'),h('td',{class:'l'},r.cust),h('td',{class:'l'},r.grower),h('td',{class:'l'},r.pay),h('td',{class:'l'},r.cat),h('td',{},fmt(r.size,2)),h('td',{},fmt(r.net1,1))))))));
+  }
   if (K.arithRows.length) simple('Weight arithmetic mismatches', K.arithRows, 'The weight steps do not balance for these records.');
 
   main.append(h('h2',{style:'font-size:14px;margin:22px 0 4px'},'Changes at the last refresh'));
